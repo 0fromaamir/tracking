@@ -45,6 +45,25 @@ AppDataSource.initialize()
   .then(async () => {
     console.log("✅ Supabase connected & tables created automatically!");
 
+    // --- Test Route for Render / DB ---
+    app.get("/api/test", async (req, res) => {
+      try {
+        const result = await AppDataSource.query("SELECT 1+1 AS result");
+        res.status(200).json({
+          status: "success",
+          message: "Backend & DB connected successfully!",
+          dbTest: result[0]
+        });
+      } catch (err) {
+        console.error("DB Test Error:", err);
+        res.status(500).json({
+          status: "error",
+          message: "DB connection failed",
+          error: err.message
+        });
+      }
+    });
+
     // API Routes
     app.use("/api/admins", adminRoutes);
     app.use("/api/students", studentRoutes);
@@ -53,7 +72,6 @@ AppDataSource.initialize()
     app.use("/api/time-management", timeManagementRoutes);
     app.use("/api/classes", classRoutes);
     app.use("/api/camraConfig", cameraConfigurationRoutes);
-
     // app.use("/api/movements", movementRoutes);
 
     // -------------------
