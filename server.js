@@ -72,7 +72,11 @@ AppDataSource.initialize()
     app.use("/api/teacher", teacherRoutes);
     app.use("/api/time-management", timeManagementRoutes);
     app.use("/api/classes", classRoutes);
+<<<<<<< HEAD
     app.use("/api/cameraConfig", cameraConfigurationRoutes);
+=======
+    app.use("/api/camraConfig", cameraConfigurationRoutes);
+>>>>>>> b95cd62ea30d431b3db9e40c0f131d5411aebffe
 
     // -------------------
     // React client serving (Production only)
