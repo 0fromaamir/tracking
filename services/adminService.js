@@ -80,6 +80,8 @@ class AdminService {
   // ✅ Update Student
 // services/adminService.js
 
+// services/adminService.js
+
 async updateStudent(id, data) {
   const studentRepo = AppDataSource.getRepository(Student);
   const classRepo = AppDataSource.getRepository("Class");
@@ -118,13 +120,34 @@ async updateStudent(id, data) {
   // 3️⃣ Remove class fields from student payload
   const { classes, section, year, ...studentData } = data;
 
-  // 4️⃣ Update student fields and link class
+  // 4️⃣ Normalize face_encoding (NEW)
+  if (studentData.face_encoding) {
+    if (Array.isArray(studentData.face_encoding)) {
+      studentData.face_encoding = studentData.face_encoding.map((v) => parseFloat(v));
+    } else if (typeof studentData.face_encoding === "string") {
+      try {
+        studentData.face_encoding = JSON.parse(studentData.face_encoding).map((v) => parseFloat(v));
+      } catch {
+        studentData.face_encoding = studentData.face_encoding
+          .replace(/[{}\[\]"]/g, "")
+          .split(",")
+          .map((v) => parseFloat(v.trim()))
+          .filter((v) => !isNaN(v));
+      }
+    } else if (typeof studentData.face_encoding === "object") {
+      studentData.face_encoding = Object.values(studentData.face_encoding).map((v) =>
+        parseFloat(v)
+      );
+    }
+  }
+
+  // 5️⃣ Update student fields and link class
   student = Object.assign(student, studentData, { class: classEntity });
 
-  // 5️⃣ Save student
+  // 6️⃣ Save student
   await studentRepo.save(student);
 
-  console.log("✅ Student updated:", student); // debugging
+  console.log("✅ Student updated:", student);
 
   return student;
 }

@@ -150,12 +150,12 @@ class AdminController {
 // API Student Update 
  // controllers/adminController.js
 
-async updateStudent(req, res) {
+async  updateStudent(req, res) {
   try {
     const { id } = req.params;
     const updatedData = req.body;
 
-    // Call adminService.updateStudent which now handles class linking
+    // Call service
     const student = await adminService.updateStudent(parseInt(id), updatedData);
 
     if (!student) {

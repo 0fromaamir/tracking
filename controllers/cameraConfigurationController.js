@@ -80,23 +80,38 @@ exports.searchTimeManagement = async (req, res) => {
 };
 
 
-
-// Controller: fetch attendance setup
+// cameraCnfigurationController.js
 exports.fetchAttendanceSetup = async (req, res) => {
   const { classId, slotId } = req.query;
+
+  console.log("📩 [fetchAttendanceSetup] Incoming request:", { classId, slotId });
+
   if (!classId || !slotId) {
+    console.warn("⚠️ Missing required params:", { classId, slotId });
     return res.status(400).json({ success: false, message: "Missing classId or slotId" });
   }
 
   try {
     const data = await cameraConfigurationService.getAttendanceSetupData(classId, slotId);
-    if (!data) return res.status(404).json({ success: false, message: "Data not found" });
+
+    if (!data) {
+      console.warn("⚠️ No data returned from getAttendanceSetupData()");
+      return res.status(404).json({ success: false, message: "No cameras or students found for this class/slot" });
+    }
+
+    console.log("✅ Attendance setup fetched successfully:", {
+      cameraCount: data.cameras?.length || 0,
+      studentCount: data.students?.length || 0,
+      teacher: data.teacher?.name || "No teacher",
+    });
+
     res.json({ success: true, ...data });
   } catch (err) {
-    console.error("Fetch Attendance Setup Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ [fetchAttendanceSetup] Server error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
+
 
 
 

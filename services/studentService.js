@@ -110,21 +110,32 @@ const registerStudent = async (data) => {
 // ---------------- New: Get All Students ----------------
 const getAllStudents = async () => {
   return await studentRepository.find({
-    relations: ["admin"],
-    select: [
-      "id",
-      "name",
-      "roll_number",
-      "email",
-      "phone",
-      "department",
-      "year",
-      "section",
-      "classes",
-      "profile_image"
-    ]
+    relations: ["admin", "class"],
+    select: {
+      id: true,
+      name: true,
+      roll_number: true,
+      email: true,
+      phone: true,
+      department: true,
+      year: true,
+      profile_image: true,
+      admin: {
+        id: true,
+        name: true,
+      },
+      class: {
+        id: true,
+        name: true,
+        section: true,
+        year: true,
+      },
+    },
   });
 };
+
+
+
 
 // ---------------- New: Get Student Encodings ----------------
 const getStudentEncodings = async () => {
@@ -138,37 +149,25 @@ const getStudentEncodings = async () => {
 
 // ✅ New Service: Filtered Students
 const getFilteredStudents = async (filters) => {
-  const { rollNumber, department, phone, email, section, year, month, date } = filters;
+  const { rollNumber, department, phone, email, section, year, classes, month, date } = filters;
   const studentRepo = AppDataSource.getRepository(Student);
 
-  let query = studentRepo
-    .createQueryBuilder("student")
+  let query = studentRepo.createQueryBuilder("student")
     .leftJoinAndSelect("student.class", "class");
 
-  if (rollNumber) {
-    query.andWhere("student.roll_number ILIKE :rollNumber", { rollNumber: `%${rollNumber}%` });
-  }
-  if (department) {
-    query.andWhere("student.department ILIKE :department", { department: `%${department}%` });
-  }
-  if (phone) {
-    query.andWhere("student.phone ILIKE :phone", { phone: `%${phone}%` });
-  }
-  if (email) {
-    query.andWhere("student.email ILIKE :email", { email: `%${email}%` });
-  }
-  if (section) {
-    query.andWhere("class.section ILIKE :section", { section: `%${section}%` });
-  }
+  if (rollNumber) query.andWhere("student.roll_number ILIKE :rollNumber", { rollNumber: `%${rollNumber}%` });
+  if (department) query.andWhere("student.department ILIKE :department", { department: `%${department}%` });
+  if (phone) query.andWhere("student.phone ILIKE :phone", { phone: `%${phone}%` });
+  if (email) query.andWhere("student.email ILIKE :email", { email: `%${email}%` });
+  if (section) query.andWhere("class.section ILIKE :section", { section: `%${section}%` });
+  if (classes) query.andWhere("class.name ILIKE :classes", { classes: `%${classes}%` });
+
   if (year) {
-    query.andWhere("class.year ILIKE :year", { year: `%${year}%` });
+    query.andWhere("(student.year = :year OR class.year = :year)", { year: parseInt(year, 10) });
   }
-  if (month) {
-    query.andWhere("EXTRACT(MONTH FROM student.created_at) = :month", { month });
-  }
-  if (date) {
-    query.andWhere("DATE(student.created_at) = :date", { date });
-  }
+
+  if (month) query.andWhere("EXTRACT(MONTH FROM student.created_at) = :month", { month });
+  if (date) query.andWhere("DATE(student.created_at) = :date", { date });
 
   return await query
     .select([
@@ -185,8 +184,13 @@ const getFilteredStudents = async (filters) => {
       "class.section",
       "class.year"
     ])
+    .orderBy("class.year", "ASC")
+    .addOrderBy("class.name", "ASC")
+    .addOrderBy("class.section", "ASC")
+    .addOrderBy("student.roll_number", "ASC")
     .getMany();
 };
+
 
 
 
@@ -227,12 +231,12 @@ async function findStudentById(id) {
 
 
 module.exports = {
-  
+
   registerStudent,
   getAllStudents,
   getStudentEncodings,
   getFilteredStudents,
   getStudentCount,
   findStudentById,
-  
+
 };

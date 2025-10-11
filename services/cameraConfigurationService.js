@@ -66,16 +66,23 @@ exports.getAllCameraConfigs = async () => {
 };
 
 
+// cameraConfigurationService.js
 exports.updateCameraConfig = async (id, data) => {
-  const config = await cameraRepo.findOneBy({ id });
+  // Load camera with class relation
+  const config = await cameraRepo.findOne({
+    where: { id },
+    relations: ["class", "admin"], // include admin too if needed
+  });
   if (!config) return null;
 
-  // Handle class update if provided
+  // Handle class update
+  let classEntity = config.class;
   if (data.class) {
     let classId = data.class;
 
+    // If class is passed as string, find by name
     if (typeof data.class === "string") {
-      const classEntity = await classRepo
+      classEntity = await classRepo
         .createQueryBuilder("class")
         .where("LOWER(class.name) = LOWER(:name)", { name: data.class })
         .getOne();
@@ -84,13 +91,29 @@ exports.updateCameraConfig = async (id, data) => {
       classId = classEntity.id;
     }
 
-    // Replace class string with object for TypeORM relation
-    data.class = { id: classId };
+    data.class = { id: classId }; // update relation
   }
 
+  // Update camera fields
   cameraRepo.merge(config, data);
-  return await cameraRepo.save(config);
+  const updatedCamera = await cameraRepo.save(config);
+
+  // ✅ Update class fields if section/year provided
+  if (classEntity && (data.section || data.year)) {
+    if (data.section) classEntity.section = data.section;
+    if (data.year) classEntity.year = data.year;
+    await classRepo.save(classEntity);
+  }
+
+  // Reload camera with updated class relation
+  const finalCamera = await cameraRepo.findOne({
+    where: { id: updatedCamera.id },
+    relations: ["class", "admin"],
+  });
+
+  return finalCamera;
 };
+
 
 
 
@@ -126,40 +149,67 @@ exports.searchTimeManagement = async (className, section, department) => {
     .getMany();
 };
 
-//Attendance through perticuler camera
-// Fetch setup data for attendance (camera, teacher, students)
+
+// cameraCnfigurationService.js
 exports.getAttendanceSetupData = async (classId, slotId) => {
+  console.log("🔍 [getAttendanceSetupData] Starting fetch:", { classId, slotId });
+
   const timeRepo = AppDataSource.getRepository(TimeManagement);
   const cameraRepo = AppDataSource.getRepository(CameraConfiguration);
   const studentRepo = AppDataSource.getRepository(Student);
 
-  const slot = await timeRepo.findOne({
-    where: { id: slotId, class: { id: classId } },
-    relations: ["teacher", "class"]
-  });
-  if (!slot) return null;
+  const classIdNum = parseInt(classId);
+  const slotIdNum = parseInt(slotId);
 
-  const camera = await cameraRepo.findOne({
-    where: { class: { id: classId }, status: "active" },
-    relations: ["class", "admin"]
-  });
-  if (!camera) return null;
+  // ✅ Fetch slot + teacher + class
+  const slot = await timeRepo
+    .createQueryBuilder("slot")
+    .leftJoinAndSelect("slot.teacher", "teacher")
+    .leftJoinAndSelect("slot.class", "c")
+    .where("slot.id = :slotId", { slotId: slotIdNum })
+    .andWhere("c.id = :classId", { classId: classIdNum })
+    .getOne();
 
+  if (!slot) {
+    console.warn(`⚠️ No slot found for slotId=${slotIdNum} & classId=${classIdNum}`);
+    return { cameras: [], students: [], teacher: null };
+  }
+
+  console.log("🕒 Slot found:", slot.id, slot.subject);
+
+  // ✅ Fetch cameras
+  const cameras = await cameraRepo.find({
+    where: { class: { id: classIdNum }, status: "active" },
+    relations: ["class", "admin"],
+  });
+
+  // ✅ Fetch students
   const students = await studentRepo.find({
-    where: { class: { id: classId } },
-    select: ["id", "name", "roll_number", "face_encoding"]
+    where: { class: { id: classIdNum } },
+    select: ["id", "name", "roll_number", "face_encoding"],
   });
+
+  // ✅ Prepare teacher object
+  const teacher = slot.teacher
+    ? {
+        id: slot.teacher.id,
+        name: slot.teacher.name,
+        face_encoding: slot.teacher.face_encoding,
+      }
+    : null;
+
+  console.log(`✅ Cameras: ${cameras.length}, Students: ${students.length}, Teacher: ${teacher?.name || "None"}`);
 
   return {
-    camera,
-    teacher: {
-      id: slot.teacher.id,
-      name: slot.teacher.name,
-      face_encoding: slot.teacher.face_encoding
-    },
-    students
+    cameras: cameras || [],
+    students: students || [],
+    teacher
   };
 };
+
+
+
+
 
 
 

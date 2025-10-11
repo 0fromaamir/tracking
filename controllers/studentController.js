@@ -55,26 +55,19 @@ const registerStudent = async (req, res) => {
 // ---------------- New Function: Get All Students ----------------
 const getAllStudents = async (req, res) => {
   try {
-    const students = await AppDataSource.getRepository(Student).find({
-      relations: ["admin"],
-      select: [
-        "id",
-        "name",
-        "roll_number",
-        "email",
-        "phone",
-        "department",
-        "year",
-        "section",
-        "classes",
-        "profile_image",
-      ]
+    const students = await studentService.getAllStudents();
+    return res.status(200).json({
+      success: true,
+      count: students.length,
+      students,
     });
-
-    res.status(200).json({ success: true, students });
   } catch (err) {
-    console.error("Error fetching students:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Error fetching students:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch students",
+      error: err.message,
+    });
   }
 };
 
@@ -98,7 +91,7 @@ const getStudentEncodings = async (req, res) => {
 // ✅ New Controller for Filtering
 const getFilteredStudents = async (req, res) =>  {
   try {
-    const filters = req.query; // rollNumber, year, department, section, phone, email, month, date
+    const filters = req.query; // includes rollNumber, year, department, section, classes, month, date
     const students = await studentService.getFilteredStudents(filters);
     res.json(students);
   } catch (error) {
@@ -106,6 +99,7 @@ const getFilteredStudents = async (req, res) =>  {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 
 // ------------------------------------

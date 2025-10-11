@@ -73,33 +73,53 @@ const attendanceService = {
     return Promise.all(attendancePromises);
   },
 
-  async getAttendance({ date = null, studentId = null, department = null, year = null, classes = null }) {
-    const attendanceRepo = AppDataSource.getRepository("Attendance");
+ // attendanceService.js
+async getAttendance({ date = null, studentId = null, department = null, year = null, classId = null }) {
+  const attendanceRepo = AppDataSource.getRepository("Attendance");
 
-    const query = attendanceRepo.createQueryBuilder("attendance")
-      .leftJoinAndSelect("attendance.student", "student");
+  const query = attendanceRepo.createQueryBuilder("attendance")
+    .leftJoinAndSelect("attendance.student", "student")
+    .leftJoinAndSelect("attendance.class", "class")
+    .leftJoinAndSelect("attendance.teacher", "teacher");
 
-    if (date) {
-      const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
+  // ✅ Date filter
+  if (date) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
 
-      query.andWhere("attendance.date BETWEEN :start AND :end", {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
-    }
+    query.andWhere("attendance.date BETWEEN :start AND :end", {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+  }
 
-    if (studentId) query.andWhere("student.id = :studentId", { studentId });
-    if (department) query.andWhere("student.department ILIKE :department", { department });
-    if (year) query.andWhere("student.year = :year", { year });
-    if (classes) query.andWhere("student.classes = :classes", { classes });
+  // ✅ Student filter
+  if (studentId) {
+    query.andWhere("student.id = :studentId", { studentId });
+  }
 
-    query.orderBy("attendance.date", "DESC");
+  // ✅ Department filter (from student)
+  if (department) {
+    query.andWhere("student.department ILIKE :department", { department: `%${department}%` });
+  }
 
-    return query.getMany();
-  },
+  // ✅ Year filter (now check from class.year instead of student.year)
+  if (year) {
+    query.andWhere("class.year = :year", { year });
+  }
+
+  // ✅ Class filter (since student.classes is gone, use class.id or class.name+section)
+  if (classId) {
+    query.andWhere("class.id = :classId", { classId });
+  }
+
+  query.orderBy("attendance.date", "DESC");
+
+  return query.getMany();
+}
+,
 
 // attendanceService.js
 async markAttendanceByTimetable(timetableId, presentStudents = [], opts = {}) {

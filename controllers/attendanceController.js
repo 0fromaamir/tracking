@@ -46,31 +46,35 @@ const attendanceController = {
   },
 
 
-  // GET /api/attendance?date=&department=&year=&classes=
-  getAttendance: async (req, res) => {
-    try {
-      const { date, studentId, department, year, classes } = req.query;
+// GET /api/attendance?date=&studentId=&department=&year=&classId=
+getAttendance: async (req, res) => {
+  try {
+    const { date, studentId, department, year, classId } = req.query;
 
-      const records = await attendanceService.getAttendance({
-        date,
-        studentId,
-        department,
-        year,
-        classes
-      });
+    const records = await attendanceService.getAttendance({
+      date,
+      studentId,
+      department,
+      year,
+      classId, // updated key
+    });
 
-      return res.status(200).json({
-        success: true,
-        records,
-      });
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-      return res.status(500).json({
-        success: false,
-        message: "Server error while fetching attendance",
-      });
-    }
-  },
+    return res.status(200).json({
+      success: true,
+      records,
+    });
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching attendance",
+    });
+  }
+},
+
+
+
+
 
   // GET /api/attendance/encodings?department=&year=&classes=
   // ✅ Case-insensitive getStudentEncodings

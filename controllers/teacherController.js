@@ -4,11 +4,20 @@ const teacherService = require('../services/teacherService')
 // teacherController.js
 const register = async (req, res) => {
   try {
-    const adminId = req.user.id; // ✅ from JWT (verifyAdmin)
-    const teacher = await teacherService.registerTeacher({
-      ...req.body,
-      adminId,
-    });
+    const adminId = req.user.id;
+
+    // Bulk support
+    if (Array.isArray(req.body)) {
+      const results = [];
+      for (const data of req.body) {
+        const teacher = await teacherService.registerTeacher({ ...data, adminId });
+        results.push(teacher);
+      }
+      return res.status(201).json({ success: true, teachers: results });
+    }
+
+    // Single teacher
+    const teacher = await teacherService.registerTeacher({ ...req.body, adminId });
     res.status(201).json({ success: true, teacher });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
